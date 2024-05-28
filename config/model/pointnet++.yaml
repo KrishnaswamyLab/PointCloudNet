@@ -1,0 +1,8 @@
+# @package _global_
+
+model_name: "pointnet++"
+
+model:
+  _target_: pcnn.models.pointnet++.Pointnet_plus
+  scattering_n_pca: null
+  lr: 0.001

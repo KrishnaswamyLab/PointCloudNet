@@ -1,0 +1,14 @@
+# @package _global_
+
+hydra:
+  sweeper:
+    params:
+      name: legs_melanoma_eps
+      model: legs
+      data: melanoma
+      graph_construct: epsilon_lap
+      data.random_state: 42, 43, 44, 45, 46
+      model.lr: 0.001, 0.01
+      model.layer.trainable_scales: True
+      model.pooling.name: moments
+

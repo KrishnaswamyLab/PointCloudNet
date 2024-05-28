@@ -1,0 +1,24 @@
+# @package _global_
+
+model_name: "mnn_diffusion"
+
+model:
+  _target_: pcnn.models.pcnn.PCNN
+  num_layers: 2
+  hidden_dim: 16
+  lr: 0.001
+  compute_P: True
+  scattering_n_pca: null
+  K: 5
+  layer:
+    filter_method: mnn_diffusion
+    combine_method: sum
+    activation: relu
+    cross_channel_conv: identity
+    reshaping: identity
+    num_filters: ${model.hidden_dim}
+    num_combine: 1
+    num_cross_channels: 1
+  graph_construct: ${graph_construct}
+    
+

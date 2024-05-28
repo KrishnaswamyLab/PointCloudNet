@@ -1,0 +1,22 @@
+# @package _global_
+
+model_name: "gnn"
+
+model:
+  _target_: pcnn.models.pcnn.PCNN
+  num_layers: 2
+  hidden_dim: 32
+  lr: 0.001
+  compute_P: False
+  scattering_n_pca: null
+  layer:
+    filter_method: gcn
+    combine_method: identity
+    activation: relu
+    cross_channel_conv: identity
+    reshaping: identity
+    num_filters: ${model.hidden_dim}
+    num_combine: null
+    num_cross_channels: 1
+  graph_construct: ${graph_construct}
+

@@ -1,0 +1,14 @@
+# @package _global_
+
+hydra:
+  sweeper:
+    params:
+      name: gnn_tcells_dense
+      model: gnn 
+      data: tcells
+      data.random_state: 42, 43, 44, 45, 46
+      model.lr: 0.001, 0.01
+      model.hidden_dim: 16, 32
+      graph_construct: dense_lap
+      trainer.max_epochs: 200
+

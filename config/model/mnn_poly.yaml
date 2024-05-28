@@ -1,0 +1,24 @@
+# @package _global_
+
+model_name: "mnn"
+
+model:
+  _target_: pcnn.models.pcnn.PCNN
+  num_layers: 2
+  hidden_dim: 8
+  lr: 0.001
+  compute_P: False
+  scattering_n_pca: null
+  layer:
+    filter_method: mnn
+    combine_method: sum
+    activation: relu
+    cross_channel_conv: identity
+    reshaping: identity
+    num_filters: ${model.hidden_dim}
+    num_combine: 1
+    num_cross_channels: 1
+    poly_filter: True
+    max_poly_order: 5
+  graph_construct: ${graph_construct}
+

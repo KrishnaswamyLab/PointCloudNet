@@ -1,0 +1,13 @@
+# @package _global_
+
+hydra:
+  sweeper:
+    params:
+      name: gnn_modelnet_eps
+      model: gnn 
+      data: modelnet
+      data.random_state: 42, 43, 44, 45, 46
+      model.lr: 0.001, 0.01
+      model.hidden_dim: 16, 32
+      graph_construct: epsilon_graph
+      trainer.max_epochs: 200

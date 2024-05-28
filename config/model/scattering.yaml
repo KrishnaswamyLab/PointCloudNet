@@ -1,0 +1,22 @@
+# @package _global_
+
+model_name: "scattering"
+
+model:
+  _target_: pcnn.models.pcnn.PCNN
+  num_layers: 1
+  hidden_dim: null
+  lr: 0.001
+  compute_P: False
+  scattering_n_pca: null
+  layer:
+    filter_method: extract_scattering
+    combine_method: identity
+    activation: identity
+    cross_channel_conv: identity
+    reshaping: identity
+    num_filters: ${model.hidden_dim}
+    num_combine: 1
+    num_cross_channels: 1
+  graph_construct: ${graph_construct}
+

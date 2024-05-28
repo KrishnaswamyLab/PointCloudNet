@@ -1,0 +1,9 @@
+# @package _global_
+
+#This returns the point cloud as a list of points instead of creating a graph
+
+graph_construct:
+  graph_type: raw
+  compute_laplacian: False
+  compute_scattering_feats: False
+  normalize_scattering_features: False

@@ -1,0 +1,12 @@
+# @package _global_
+
+hydra:
+  sweeper:
+    params:
+      name: mnn_mlp_melanoma_knn
+      model: mnn
+      data: melanoma
+      model.hidden_dim: 16, 32
+      graph_construct: knn_lap
+      data.random_state: 42, 43, 44, 45, 46
+      model.lr: 0.001, 0.01

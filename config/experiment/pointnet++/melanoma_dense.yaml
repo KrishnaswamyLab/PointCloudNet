@@ -1,0 +1,12 @@
+# @package _global_
+
+hydra:
+  sweeper:
+    params:
+      name: pointnet++_melanoma_dense
+      model: pointnet++
+      data: melanoma
+      graph_construct: raw
+      data.random_state: 42, 43, 44, 45, 46
+      model.lr: 0.001, 0.01
+

@@ -1,0 +1,18 @@
+# @package _global_
+hydra:
+  sweeper:
+    params:
+      name: legs_myeloma_learnt
+      model: legs
+      data: longcovid
+      +data.variant: myeloid
+      graph_construct: raw
+      data.random_state: 42, 43, 44, 45, 46
+      model.lr: 0.001, 0.01
+      model.layer.trainable_scales: True
+      model.layer.trainable_laziness: True, False
+      model.learnable_graph: True
+      model.pooling.name: moments, attention
+      
+  launcher:
+    n_jobs: 5

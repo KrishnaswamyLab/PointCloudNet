@@ -1,0 +1,28 @@
+# @package _global_
+
+model_name: "mnn"
+
+model:
+  _target_: pcnn.models.pcnn.PCNN
+  num_layers: 2
+  hidden_dim: 4
+  lr: 0.001
+  compute_P: False
+  scattering_n_pca: null
+  scattering_aggregate: True
+  layer:
+    filter_method: mnn
+    combine_method: identity
+    activation: abs
+    cross_channel_conv: identity
+    reshaping: flatten
+    num_filters: ${model.hidden_dim}
+    num_combine: 1
+    num_cross_channels: 1
+    poly_filter: False
+    scattering_filter: True
+  pooling:
+    name: moments
+    moments_order: [1,2,3,4]
+  graph_construct: ${graph_construct}
+

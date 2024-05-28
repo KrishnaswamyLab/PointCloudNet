@@ -1,0 +1,15 @@
+# @package _global_
+
+hydra:
+  sweeper:
+    params:
+      name: legs_modelnet_knn
+      model: legs
+      data: modelnet
+      graph_construct: knn_lap
+      graph_construct.compute_scattering_feats: True
+      data.random_state: 42, 43, 44, 45, 46
+      model.lr: 0.001, 0.01
+      model.layer.trainable_scales: True
+      model.pooling.name: moments
+

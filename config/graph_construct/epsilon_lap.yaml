@@ -1,0 +1,14 @@
+# @package _global_
+
+graph_construct:
+  k: null
+  graph_type: epsilon
+  compute_laplacian: combinatorial
+  compute_scattering_feats: True
+  normalize_scattering_features: False
+  eps: 1
+  K: 20
+  d: 2
+  eps_quantile: 0.5
+  norm_list: [1,2,3,4]
+  J: 4

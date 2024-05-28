@@ -1,0 +1,8 @@
+# @package _global_
+
+model_name: "point_transformer"
+
+model:
+  _target_: pcnn.models.point_transformer.point_transformer
+  scattering_n_pca: null
+  lr: 0.001

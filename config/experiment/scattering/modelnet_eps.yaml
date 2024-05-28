@@ -1,0 +1,13 @@
+# @package _global_
+
+hydra:
+  sweeper:
+    params:
+      name: scattering_modelnet_eps
+      model: scattering
+      data: modelnet
+      graph_construct: epsilon_lap
+      graph_construct.compute_scattering_feats: True
+      data.random_state: 42, 43, 44, 45, 46
+      model.lr: 0.001, 0.01
+
