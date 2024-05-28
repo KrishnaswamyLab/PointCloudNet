@@ -1,4 +1,4 @@
-# Manifold Filter-Combine Networks
+# Point Cloud Net
 
 
 ## Install
