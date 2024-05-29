@@ -1,0 +1,17 @@
+# @package _global_
+
+dataset_name: longcovid_myeloid
+
+data:
+  _target_: pcnn.data.longcovid.LongCovidData
+  _partial_: True
+  n_samples: 100
+  batch_size: 32
+  num_workers: 0
+  random_state: 42
+  pin_memory: False
+  graph_construct: ${graph_construct}
+  re_precompute: False
+  reprocess_if_different: True
+  train_size: null
+  scattering_n_pca: ${model.scattering_n_pca}

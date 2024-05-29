@@ -1,0 +1,14 @@
+# @package _global_
+
+dataset_name: mnist
+
+data:
+  _target_: pcnn.data.mnist.MNISTData
+  _partial_: True
+  batch_size: 256
+  num_workers: 4
+  random_state: 42
+  pin_memory: True
+  graph_construct: ${graph_construct}
+  re_precompute: False
+  reprocess_if_different: True
