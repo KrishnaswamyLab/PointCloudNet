@@ -150,6 +150,7 @@ class MelanomaDataset(InMemoryDataset):
         labels = []
 
         label_dict = {"NO":0,"YES":1}
+        #54 patients
         for pat_id in patient_data.keys():
             len_pat = len(patient_data[pat_id])
             for n in range(n_samples):
