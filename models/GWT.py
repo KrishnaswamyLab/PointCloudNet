@@ -1,16 +1,4 @@
-from os import listdir
-import numpy as np
-import phate
-import h5py
-import scipy
-import scipy.io as sio
-from collections import Counter
-from collections import defaultdict
-from numpy import linalg as LA
-import matplotlib.pyplot as plt
-import networkx as nx
-import tphate
-import scprep
+import torch
 
 
 class GraphWaveletTransform():
@@ -18,73 +6,46 @@ class GraphWaveletTransform():
     This class is used to generate graph wavelet transform features from a given adjacency matrix and node features.
     The graph wavelet transform is a method to generate features from a graph that are invariant to the graph's structure.'''
 
-    def __init__(self, adj, ro):
-        self.adj = adj
-        self.ro = ro
-
-    def lazy_random_walk(self):
-
-        P_array = []
+    def __init__(self, adj, ro, device):
+        self.adj = adj.to(device)
+        self.ro = ro.to(device)
+        self.device = device
         d = self.adj.sum(0)
         P_t = self.adj/d
-        P_t[np.isnan(P_t)] = 0
-        P = 1/2*(np.identity(P_t.shape[0])+P_t)
-
-        return P
-
-    def graph_wavelet(self, P):
-
-        psi = []
+        P_t[torch.isnan(P_t)] = 0
+        self.P = 1/2*(torch.eye(P_t.shape[0]).to(self.device)+P_t)
+        self.psi = []
         for d1 in [1,2,4,8,16]:
-            W_d1 = LA.matrix_power(P,d1) - LA.matrix_power(P,2*d1)
-            psi.append(W_d1)
-
-        return psi
+            W_d1 = torch.matrix_power(self.P,d1) - torch.matrix_power(self.P,2*d1)
+            self.psi.append(W_d1)
 
     def zero_order_feature(self):
 
-        F0 = np.matmul(LA.matrix_power(self.adj,16),self.ro)
+        F0 = torch.matrix_power(self.adj,16)@self.ro
 
         return F0
 
     def first_order_feature(self):
+        u = [torch.abs(self.psi[i]@self.ro) for i in range(len(self.psi))]
+        u.append(torch.matrix_power(self.adj,16)@self.ro)
+        F1 = torch.cat(u,1)
+        return F1, u[:-1]
 
-        P = self.lazy_random_walk(self.adj)
-        W = self.graph_wavelet(P)
-        u = np.abs(np.matmul(W,self.ro))
-
-        F1 = np.matmul(LA.matrix_power(self.adj,16),np.abs(u))
-        F1 = np.concatenate(F1,0)
-
-        return F1
-
-    def second_order_feature(self):
-
-        P = self.lazy_random_walk(self.adj)
-        W = self.graph_wavelet(P)
-        u = np.abs(np.matmul(W,self.ro))
-
-        u1 = np.einsum('ij,ajt ->ait',W[1],u[0:1])
-        for i in range(2,len(W)):
-            u1 = np.concatenate((u1,np.einsum('ij,ajt ->ait',W[i],u[0:i])),0)
-        u1 = np.abs(u1)
-        F2 = np.matmul(LA.matrix_power(self.adj,16),u1)
-        F2 = np.concatenate(F2,0)
-
-        return F2
+    def second_order_feature(self,u):
+        u1 = torch.empty((self.ro.shape)).to(self.device)
+        for j in range(len(self.psi)):
+            for j_prime in range(0,j):
+                u1 = torch.cat((u1, torch.abs(self.psi[j_prime]@u[j])), 1)
+            u1 = torch.cat((u1, torch.matrix_power(self.adj,16)@u[j]),1)
+        return u1
 
     def generate_timepoint_feature(self):
 
-        P = self.lazy_random_walk(self.adj)
-
-        W = self.graph_wavelet(P)
-        u = np.abs(np.matmul(W,self.ro))
-
-        F0 = self.zero_order_feature(self.adj,self.ro)
-        F1 = self.first_order_feature(self.adj,u)
-        F2 = self.second_order_feature(self.adj,W,u)
-        F = np.concatenate((F0,F1),axis=0)
-        F = np.concatenate((F,F2),axis=0)
+        F0 = self.zero_order_feature()
+        F1,u = self.first_order_feature()
+        F2 = self.second_order_feature(u)
+        F = torch.concatenate((F0,F1),axis=1)
+        F = torch.concatenate((F,F2),axis=1)
 
         return F
 
