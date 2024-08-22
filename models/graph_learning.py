@@ -88,18 +88,16 @@ class PointCloudGraphEnsemble(nn.Module):
 class GraphFeatLearningLayer(nn.Module):
     def __init__(self, kernel_type, dimension, threshold, device):
         super(GraphFeatLearningLayer, self).__init__()
-        self.epsilon = nn.Parameter(torch.ones(1, requires_grad=True))
-        
-        self.alphas = nn.Parameter(torch.randn(dimension,requires_grad=False)).to(device)
+        self.alphas = nn.Parameter(torch.ones(dimension,requires_grad=True).to(device))
         self.kernel_type = kernel_type
         self.threshold = threshold
         self.device = device
 
-    def forward(self, point_cloud):
+    def forward(self, point_cloud, eps):
         
-        W = compute_dist(point_cloud.to(self.device)*self.alphas) 
-        W = 1/W
-        W[W==torch.inf] = 0
+        W = compute_dist(point_cloud.to(self.device)*torch.sqrt(self.alphas)) 
+        W = 1/(W + eps)
+        W[W==(1/eps)] = 0
         W[W<self.threshold] = 0
         gwt = GraphWaveletTransform(W, point_cloud, self.device)
         psi = gwt.generate_timepoint_feature()
@@ -109,8 +107,6 @@ class PointCloudFeatLearning(nn.Module):
     def __init__(self, raw_dir, kernel_type, threshold, device):
         super(PointCloudFeatLearning, self).__init__()
         self.raw_dir = raw_dir
-        #Load the pointclouds, patient IDs, and labels
-        #Note: See test.ipynb for clarification on the structure of the point cloud dataset
         with open(os.path.join(self.raw_dir, 'pc.pkl'), 'rb') as handle:
             self.subsampled_pcs = pickle.load(handle)
 
@@ -123,17 +119,17 @@ class PointCloudFeatLearning(nn.Module):
         self.dimension = self.subsampled_pcs[0].shape[1]
         self.graph_feat = GraphFeatLearningLayer(kernel_type, self.dimension, threshold, device)
         self.num_labels = len(np.unique(self.labels))
-        self.input_dim = self.graph_feat(torch.tensor(self.subsampled_pcs[0], dtype=torch.float).to(device)).shape[1]
+        self.input_dim = self.graph_feat(torch.tensor(self.subsampled_pcs[0], dtype=torch.float).to(device), 0.01).shape[1]
         self.device = device
     
-    def forward(self, batch):
+    def forward(self, batch, eps):
         PSI = []
         for i in batch:
             point_cloud = torch.tensor(self.subsampled_pcs[i], dtype=torch.float)
-            psi = self.graph_feat(point_cloud)
+            psi = self.graph_feat(point_cloud, eps)
             if(torch.isnan(psi).any()):
                 print(f"Nan at index {i}")
-            PSI.append(psi.sum(0))
+            PSI.append(psi.mean(0))
             del(psi, point_cloud)
             torch.cuda.empty_cache()
             gc.collect()
