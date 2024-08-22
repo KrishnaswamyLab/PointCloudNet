@@ -27,16 +27,16 @@ class GraphWaveletTransform():
 
     def first_order_feature(self):
         u = [torch.abs(self.psi[i]@self.ro) for i in range(len(self.psi))]
-        u.append(torch.matrix_power(self.adj,16)@self.ro)
+        # u.append(torch.matrix_power(self.adj,16)@self.ro)
         F1 = torch.cat(u,1)
-        return F1, u[:-1]
+        return F1, u
 
     def second_order_feature(self,u):
         u1 = torch.empty((self.ro.shape)).to(self.device)
         for j in range(len(self.psi)):
             for j_prime in range(0,j):
                 u1 = torch.cat((u1, torch.abs(self.psi[j_prime]@u[j])), 1)
-            u1 = torch.cat((u1, torch.matrix_power(self.adj,16)@u[j]),1)
+            # u1 = torch.cat((u1, torch.matrix_power(self.adj,16)@u[j]),1)
         return u1
 
     def generate_timepoint_feature(self):

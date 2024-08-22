@@ -1,0 +1,17 @@
+
+  0%|                                                                                                                                       | 0/20 [00:00<?, ?it/s][34m[1mwandb[39m[22m: [33mWARNING[39m Step only supports monotonically increasing values, use define_metric to set a custom x axis. For details see: https://wandb.me/define-metric
+[34m[1mwandb[39m[22m: [33mWARNING[39m (User provided step: 0 is less than current step: 29. Dropping entry: {'graph_feat.alphas.grad': 6.46764612197876, '_timestamp': 1724342516.7079651}).
+[34m[1mwandb[39m[22m: [33mWARNING[39m (User provided step: 0 is less than current step: 29. Dropping entry: {'graph_feat.alphas.grad': 2.909801959991455, '_timestamp': 1724342524.319739}).
+  0%|                                                                                                                                       | 0/20 [00:16<?, ?it/s]
+Traceback (most recent call last):
+  File "C:\Users\hiren\OneDrive\Desktop\work with smita\PointCloudNet\main.py", line 95, in <module>
+    train(model, mlp)
+  File "C:\Users\hiren\OneDrive\Desktop\work with smita\PointCloudNet\main.py", line 58, in train
+    X = model(idx, 0.01)
+  File "C:\Users\hiren\anaconda3\envs\pcenv\lib\site-packages\torch\nn\modules\module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "C:\Users\hiren\anaconda3\envs\pcenv\lib\site-packages\torch\nn\modules\module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "C:\Users\hiren\OneDrive\Desktop\work with smita\PointCloudNet\models\graph_learning.py", line 135, in forward
+    gc.collect()
+KeyboardInterrupt

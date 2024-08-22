@@ -1,0 +1,40 @@
+
+  0%|                                                                                                                                       | 0/20 [00:00<?, ?it/s]
+tensor([[1.7232e-33, 0.0000e+00, 2.1876e-39,  ..., 0.0000e+00, 0.0000e+00,
+         0.0000e+00],
+        [3.0458e-36, 2.2817e-36, 2.3763e-36,  ..., 1.0780e-37, 1.4000e-37,
+         1.5858e-37],
+        [2.1514e-36, 3.6377e-38, 3.0596e-38,  ..., 5.2310e-38, 2.4081e-39,
+         5.6971e-38],
+        ...,
+        [2.6729e-36, 0.0000e+00, 0.0000e+00,  ..., 7.5999e-41, 1.6646e-41,
+         1.4545e-40],
+        [1.0495e-35, 0.0000e+00, 0.0000e+00,  ..., 9.5751e-41, 1.4013e-45,
+         1.7020e-40],
+        [6.4492e-31, 1.7134e-37, 1.1076e-35,  ..., 6.6772e-32, 2.7120e-33,
+         7.0490e-32]], device='cuda:0', grad_fn=<StackBackward0>)
+tensor([[5.8602e-42, 0.0000e+00, 0.0000e+00,  ..., 0.0000e+00, 0.0000e+00,
+         0.0000e+00],
+        [1.2294e-39, 0.0000e+00, 0.0000e+00,  ..., 5.1988e-43, 0.0000e+00,
+         8.6740e-43],
+        [1.4476e-35, 1.1141e-35, 1.0809e-35,  ..., 1.0632e-36, 1.0769e-36,
+         1.4261e-36],
+        ...,
+        [1.2402e-35, 9.7724e-41, 5.7189e-38,  ..., 2.3767e-37, 2.5440e-40,
+         1.1964e-36],
+        [4.9591e-36, 0.0000e+00, 0.0000e+00,  ..., 0.0000e+00, 0.0000e+00,
+         0.0000e+00],
+        [9.5849e-43, 5.2268e-43, 4.6663e-43,  ..., 0.0000e+00, 0.0000e+00,
+  0%|                                                                                                                                       | 0/20 [00:20<?, ?it/s]
+Traceback (most recent call last):
+  File "C:\Users\hiren\OneDrive\Desktop\work with smita\PointCloudNet\main.py", line 97, in <module>
+    train(model, mlp)
+  File "C:\Users\hiren\OneDrive\Desktop\work with smita\PointCloudNet\main.py", line 58, in train
+    X = model(idx)
+  File "C:\Users\hiren\anaconda3\envs\pcenv\lib\site-packages\torch\nn\modules\module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "C:\Users\hiren\anaconda3\envs\pcenv\lib\site-packages\torch\nn\modules\module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "C:\Users\hiren\OneDrive\Desktop\work with smita\PointCloudNet\models\graph_learning.py", line 135, in forward
+    gc.collect()
+KeyboardInterrupt

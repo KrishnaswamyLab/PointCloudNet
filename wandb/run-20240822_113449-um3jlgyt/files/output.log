@@ -1,0 +1,55 @@
+
+  0%|                                                                                                                            | 0/20 [00:00<?, ?it/s]
+Nan at index 466
+Nan at index 439
+Nan at index 52
+Nan at index 22
+Nan at index 315
+Nan at index 429
+Nan at index 130
+Nan at index 39
+Nan at index 293
+Nan at index 93
+Nan at index 27
+Nan at index 106
+Nan at index 252
+Nan at index 149
+Nan at index 405
+Nan at index 350
+Nan at index 68
+Nan at index 517
+Nan at index 85
+Nan at index 78
+Nan at index 363
+Nan at index 230
+Nan at index 100
+Nan at index 391
+Nan at index 449
+Nan at index 535
+Nan at index 112
+Nan at index 336
+Nan at index 309
+Nan at index 411
+Nan at index 510
+Nan at index 518
+Nan at index 481
+Nan at index 447
+  0%|                                                                                                                            | 0/20 [00:10<?, ?it/s]
+Traceback (most recent call last):
+  File "C:\Users\hiren\OneDrive\Desktop\work with smita\PointCloudNet\main.py", line 97, in <module>
+    train(model, mlp)
+  File "C:\Users\hiren\OneDrive\Desktop\work with smita\PointCloudNet\main.py", line 58, in train
+    X = model(idx)
+  File "C:\Users\hiren\anaconda3\envs\pcenv\lib\site-packages\torch\nn\modules\module.py", line 1553, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "C:\Users\hiren\anaconda3\envs\pcenv\lib\site-packages\torch\nn\modules\module.py", line 1562, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "C:\Users\hiren\OneDrive\Desktop\work with smita\PointCloudNet\models\graph_learning.py", line 135, in forward
+    gc.collect()
+KeyboardInterrupt
+Nan at index 14
+Nan at index 312
+Nan at index 222
+Nan at index 60
+Nan at index 399
+Nan at index 0
