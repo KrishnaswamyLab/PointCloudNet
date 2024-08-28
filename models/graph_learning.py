@@ -95,7 +95,8 @@ class GraphFeatLearningLayer(nn.Module):
 
     def forward(self, point_cloud, eps):
         
-        W = torch.cdist(point_cloud.to(self.device)*torch.sqrt(self.alphas), point_cloud.to(self.device)*torch.sqrt(self.alphas)) 
+        W = torch.cdist(point_cloud.to(self.device)*torch.sqrt(self.alphas), point_cloud.to(self.device)*torch.sqrt(self.alphas), compute_mode='donot_use_mm_for_euclid_dist')
+        # import pdb; pdb.set_trace() 
         W = 1/(W + eps)
         W[W==(1/eps)] = 0
         W[W<self.threshold] = 0

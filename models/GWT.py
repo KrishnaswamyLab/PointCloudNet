@@ -32,10 +32,13 @@ class GraphWaveletTransform():
         return F1, u
 
     def second_order_feature(self,u):
-        u1 = torch.empty((self.ro.shape)).to(self.device)
+        u1 = torch.zeros((self.ro.shape)).to(self.device)
         for j in range(len(self.psi)):
             for j_prime in range(0,j):
-                u1 = torch.cat((u1, torch.abs(self.psi[j_prime]@u[j])), 1)
+                if(j_prime==0 and j==0):
+                    u1 = torch.abs(self.psi[j_prime]@u[j])
+                else:
+                    u1 = torch.cat((u1, torch.abs(self.psi[j_prime]@u[j])), 1)
             # u1 = torch.cat((u1, torch.matrix_power(self.adj,16)@u[j]),1)
         return u1
 

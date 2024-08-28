@@ -13,7 +13,7 @@ gc.enable()
 
 # Define the parameters using parser args
 parser = ArgumentParser(description="Pointcloud net")
-parser.add_argument('--raw_dir', type=str, default = 'data/melanoma/raw', help="Directory where the raw data is stored")
+parser.add_argument('--raw_dir', type=str, default = 'data/raw', help="Directory where the raw data is stored")
 parser.add_argument('--kernel_type', type=str, choices=['gaussian', 'alpha_decay'], default='gaussian', help="Type of kernel function")
 parser.add_argument('--threshold', type=float, default= 5e-5, help="Threshold for creating the graph")
 parser.add_argument('--hidden_dim', type=int, default= 20, help="Hidden dim for the MLP")
