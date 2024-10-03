@@ -7,8 +7,8 @@ class GraphWaveletTransform():
     The graph wavelet transform is a method to generate features from a graph that are invariant to the graph's structure.'''
 
     def __init__(self, adj, ro, device):
-        self.adj = adj.to(device)
-        self.ro = ro.to(device)
+        self.adj = adj
+        self.ro = ro
         self.device = device
         d = self.adj.sum(0)
         P_t = self.adj/d
@@ -20,14 +20,11 @@ class GraphWaveletTransform():
             self.psi.append(W_d1)
 
     def zero_order_feature(self):
-
-        F0 = torch.matrix_power(self.adj,16)@self.ro
-
+        F0 = torch.matrix_power(self.P,16)@self.ro
         return F0
 
     def first_order_feature(self):
         u = [torch.abs(self.psi[i]@self.ro) for i in range(len(self.psi))]
-        # u.append(torch.matrix_power(self.adj,16)@self.ro)
         F1 = torch.cat(u,1)
         return F1, u
 
@@ -39,17 +36,12 @@ class GraphWaveletTransform():
                     u1 = torch.abs(self.psi[j_prime]@u[j])
                 else:
                     u1 = torch.cat((u1, torch.abs(self.psi[j_prime]@u[j])), 1)
-            # u1 = torch.cat((u1, torch.matrix_power(self.adj,16)@u[j]),1)
         return u1
 
     def generate_timepoint_feature(self):
-
         F0 = self.zero_order_feature()
         F1,u = self.first_order_feature()
         F2 = self.second_order_feature(u)
         F = torch.concatenate((F0,F1),axis=1)
         F = torch.concatenate((F,F2),axis=1)
-
         return F
-
-

@@ -3,4 +3,9 @@ ModelNet10/
 tcells/
 logs/
 melanoma_data/
+melanoma_data_full/
+wandb
+archive/
 playground.py
+playground.ipynb
+saved_models

@@ -8,8 +8,11 @@
 #SBATCH --mem=40G
 #SBATCH --output=./logs/slurm/%x_%j.out
 #SBATCH --error=./logs/slurm/%x_%j.err
-cd ~/gpfs/gibbs/pi/krishnaswamy_smita/sv496/PointCloudNet/
-module load miniconda
-conda activate mfcn
+cd /home/hm638/PointCloudNet
+conda init
+conda activate pcenv
 
-python main.py --raw_dir melanoma_data
+python main.py --num_weights 4
+python main.py --num_weights 3
+python main.py --num_weights 2
+python main.py --num_weights 1

@@ -7,6 +7,7 @@ import numpy as np
 import os
 import pickle
 from tqdm import tqdm
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from models.GWT import GraphWaveletTransform
 import gc
 gc.enable()
@@ -83,63 +84,62 @@ class PointCloudGraphEnsemble(nn.Module):
                 graph.y = torch.tensor(self.labels[i], dtype=torch.long)
                 data_list.append(graph)
         return data_list
-
-
+    
 class GraphFeatLearningLayer(nn.Module):
-    def __init__(self, kernel_type, dimension, threshold, device):
+    def __init__(self, n_weights, dimension, threshold, device):
         super(GraphFeatLearningLayer, self).__init__()
-        self.alphas = nn.Parameter(torch.ones(dimension,requires_grad=True).to(device))
-        self.kernel_type = kernel_type
+        self.alphas = nn.Parameter(torch.rand((n_weights, dimension), requires_grad=True).to(device))
+        self.n_weights = n_weights
         self.threshold = threshold
         self.device = device
 
     def forward(self, point_cloud, eps):
+        PSI = []
+        # W = torch.square(torch.cdist(point_cloud*self.alphas, point_cloud*self.alphas))
+        for i in range(self.n_weights):
+            W = compute_dist((point_cloud)*self.alphas[i])
+            W = 1/(W + eps)
+            W[W==(1/eps)] = 0
+            W[W<self.threshold] = 0
+            gwt = GraphWaveletTransform(W, point_cloud, self.device)
+            PSI.append(gwt.generate_timepoint_feature())
+        return torch.cat(PSI, dim = 1)
         
-        W = torch.cdist(point_cloud.to(self.device)*torch.sqrt(self.alphas), point_cloud.to(self.device)*torch.sqrt(self.alphas), compute_mode='donot_use_mm_for_euclid_dist')
-        # import pdb; pdb.set_trace() 
-        W = 1/(W + eps)
-        W[W==(1/eps)] = 0
-        W[W<self.threshold] = 0
-        gwt = GraphWaveletTransform(W, point_cloud, self.device)
-        psi = gwt.generate_timepoint_feature()
-        return psi
-
 class PointCloudFeatLearning(nn.Module):
-    def __init__(self, raw_dir, kernel_type, threshold, device):
+    def __init__(self, raw_dir, full, n_weights, threshold, device):
         super(PointCloudFeatLearning, self).__init__()
         self.raw_dir = raw_dir
-        with open(os.path.join(self.raw_dir, 'pc.pkl'), 'rb') as handle:
+        if full:
+            suffix = '_full'
+        else:
+            suffix = ''
+        with open(os.path.join(self.raw_dir, 'pc'+suffix+'.pkl'), 'rb') as handle:
             self.subsampled_pcs = pickle.load(handle)
-
-        with open(os.path.join(self.raw_dir, 'patient_list.pkl'), 'rb') as handle:
+            # self.subsampled_pcs = [torch.tensor(self.subsampled_pcs[i], dtype=torch.float).to(device) for i in range(len(self.subsampled_pcs))]
+            self.subsampled_pcs = [torch.tensor(StandardScaler().fit_transform(self.subsampled_pcs[i]), dtype=torch.float).to(device) for i in range(len(self.subsampled_pcs))]
+        with open(os.path.join(self.raw_dir, 'patient_list'+suffix+'.pkl'), 'rb') as handle:
             self.subsampled_patient_ids = pickle.load(handle)
-
-        self.labels = np.load(os.path.join(self.raw_dir, 'labels.npy'))
-
-        self.num_points = self.subsampled_pcs[0].shape[0]
+        self.labels = np.load(os.path.join(self.raw_dir, 'labels'+suffix+'.npy'))
         self.dimension = self.subsampled_pcs[0].shape[1]
-        self.graph_feat = GraphFeatLearningLayer(kernel_type, self.dimension, threshold, device)
+        self.graph_feat = GraphFeatLearningLayer(n_weights, self.dimension, threshold, device)
         self.num_labels = len(np.unique(self.labels))
-        self.input_dim = self.graph_feat(torch.tensor(self.subsampled_pcs[0], dtype=torch.float).to(device), 0.01).shape[1]
+        self.input_dim = self.graph_feat(self.subsampled_pcs[0], 0.01).shape[1]
         self.device = device
     
     def forward(self, batch, eps):
         PSI = []
         for i in batch:
-            point_cloud = torch.tensor(self.subsampled_pcs[i], dtype=torch.float)
-            psi = self.graph_feat(point_cloud, eps)
-            if(torch.isnan(psi).any()):
-                print(f"Nan at index {i}")
+            psi = self.graph_feat(self.subsampled_pcs[i], eps)
             PSI.append(psi.mean(0))
-            del(psi, point_cloud)
+            del(psi)
             torch.cuda.empty_cache()
             gc.collect()
-            
         return torch.stack(PSI, dim=0)
-
 class MLP(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
         super(MLP, self).__init__()
+        self.sf = nn.Softmax(dim=1)
+        self.bn = nn.BatchNorm1d(input_dim)
         if(num_layers==1):
             self.layers = nn.ModuleList([nn.Linear(input_dim, output_dim)])
         else:
@@ -149,6 +149,7 @@ class MLP(nn.Module):
             self.layers.append(nn.Linear(hidden_dim, output_dim))
     
     def forward(self, X):
+        # X = self.bn(X)
         for i in range(len(self.layers)-1):
             X = F.relu(self.layers[i](X))
         return self.layers[-1](X)
