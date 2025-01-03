@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "C:\Users\hiren\OneDrive\Desktop\work with smita\PointCloudNet\main.py", line 96, in <module>
-    train(model, mlp)
-  File "C:\Users\hiren\OneDrive\Desktop\work with smita\PointCloudNet\main.py", line 47, in train
-    for d in range(len(model.alphas)):
-  File "C:\Users\hiren\anaconda3\envs\pcenv\lib\site-packages\torch\nn\modules\module.py", line 1729, in __getattr__
-    raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-AttributeError: 'PointCloudFeatLearning' object has no attribute 'alphas'

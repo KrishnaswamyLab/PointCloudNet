@@ -1,4 +1,6 @@
-from melanoma_data.read_data import read_data, get_dataloaders
+import warnings
+warnings.filterwarnings("ignore")
+from COVID_data.read_data_knn import read_data, get_dataloaders
 from models.gnn import GCN, GIN, GAT, SAGE
 from argparse import ArgumentParser
 import torch
@@ -6,16 +8,17 @@ from tqdm import tqdm
 import numpy as np
 
 parser = ArgumentParser(description="KNN GNN")
-parser.add_argument('--raw_dir', type=str, default = 'melanoma_data_full', help="Directory where the raw data is stored")
-parser.add_argument('--full', type=bool, default = True, help="Uses full data if true, else subsetted data")
+parser.add_argument('--raw_dir', type=str, default = 'pdo_data', help="Directory where the raw data is stored")
+parser.add_argument('--full', action='store_true', help="Directory where the raw data is stored")
+parser.add_argument('--task', type=str, default = 'treatment', help="Task on PDO data")
 parser.add_argument('--model', type=str, default = 'GCN', help="Directory where the raw data is stored")
-parser.add_argument('--hidden_dim', type=int, default= 50, help="Hidden dim for the MLP")
+parser.add_argument('--hidden_dim', type=int, default= 150, help="Hidden dim for the MLP")
 parser.add_argument('--num_layers', type=int, default= 3, help="Number of MLP layers")
-parser.add_argument('--batch_size', type=int, default= 64, help="Batch size")
+parser.add_argument('--batch_size', type=int, default= 32, help="Batch size")
 parser.add_argument('--num_neighbors', type=int, default= 5, help="Number of neighbors for KNN graph")
 parser.add_argument('--lr', type=float, default= 1e-2, help="Learnign Rate")
 parser.add_argument('--wd', type=float, default= 3e-4, help="Weight decay")
-parser.add_argument('--num_epochs', type=int, default= 300, help="Number of epochs")
+parser.add_argument('--num_epochs', type=int, default= 20, help="Number of epochs")
 parser.add_argument('--gpu', type=int, default= 0, help="GPU index")
 
 def test(loader):
@@ -51,6 +54,7 @@ def train(model, train_loader, test_loader):
                 best_acc = test_acc 
             tq.set_description("Train acc = %.4f, Test acc = %.4f, Best acc = %.4f" % (train_acc.item(), test_acc.item(), best_acc))
     return best_acc
+
 args = parser.parse_args()
 if args.gpu != -1 and torch.cuda.is_available():
     args.device = 'cuda:{}'.format(args.gpu)
@@ -58,18 +62,19 @@ else:
     args.device = 'cpu'
 
 if __name__ == '__main__':
-    graphs, num_labels, train_idx, test_idx = read_data(args.raw_dir, args.full, args.num_neighbors)
+    print(args)
+    graphs, num_labels, train_idx, test_idx = read_data(args.raw_dir, args.num_neighbors, args.task)
     train_loader, test_loader = get_dataloaders(graphs, train_idx, test_idx)
-    acc = []
+    mse = []
     for i in range(10):
         if args.model == 'GCN':
-            model = GCN(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers)
+            model = GCN(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
         elif args.model == 'GIN':
-            model = GIN(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers)
+            model = GIN(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
         elif args.model == 'GAT':
-            model = GAT(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers)
+            model = GAT(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
         elif args.model == 'SAGE':
-            model = SAGE(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers)
-        acc.append(train(model, train_loader, test_loader))
-    acc = np.array(acc)
-    print(f"Average:{acc.mean()}, Std:{acc.std()}")
+            model = SAGE(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
+        mse.append(train(model, train_loader, test_loader))
+    mse = np.array(mse)
+    print(f"Average:{mse.mean()}, Std:{mse.std()}")

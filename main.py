@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 import wandb
 
-from models.graph_learning import PointCloudGraphEnsemble, PointCloudFeatLearning, MLP
+from models.graph_learning import PointCloudFeatLearning, MLP
 from argparse import ArgumentParser
 
 import gc
@@ -14,20 +14,21 @@ gc.enable()
 # Define the parameters using parser args
 parser = ArgumentParser(description="Pointcloud net")
 parser.add_argument('--raw_dir', type=str, default = 'melanoma_data_full', help="Directory where the raw data is stored")
-parser.add_argument('--full', action='store_true', help="Directory where the raw data is stored")
+parser.add_argument('--full', action='store_true')
+parser.add_argument('--task', type=str, default = 'prolif', help="Task on PDO data")
 parser.add_argument('--num_weights', type=int, default=2, help="Number of weights")
-parser.add_argument('--threshold', type=float, default= 5e-5, help="Threshold for creating the graph")
-parser.add_argument('--hidden_dim', type=int, default= 50, help="Hidden dim for the MLP")
+parser.add_argument('--threshold', type=float, default= 1e-5, help="Threshold for creating the graph")
+parser.add_argument('--hidden_dim', type=int, default= 250, help="Hidden dim for the MLP")
 parser.add_argument('--num_layers', type=int, default= 3, help="Number of MLP layers")
-parser.add_argument('--lr', type=float, default= 0.03, help="Learnign Rate")
+parser.add_argument('--lr', type=float, default= 0.001, help="Learnign Rate")
 parser.add_argument('--wd', type=float, default= 3e-3, help="Weight decay")
-parser.add_argument('--num_epochs', type=int, default= 100, help="Number of epochs")
-parser.add_argument('--batch_size', type=int, default= 128, help="Batch size")
+parser.add_argument('--num_epochs', type=int, default= 20, help="Number of epochs")
+parser.add_argument('--batch_size', type=int, default= 32, help="Batch size")
 parser.add_argument('--gpu', type=int, default= 0, help="GPU index")
 args = parser.parse_args()
 
 
-wandb.init(project='pointcloud-net', 
+wandb.init(project='pointcloud-net-melanoma', 
                  config = vars(args))
 
 if args.gpu != -1 and torch.cuda.is_available():
@@ -43,7 +44,7 @@ def test(model, mlp, labels, loader):
     total = 0                   
     with torch.no_grad():
         for idx in loader:
-            X = model(idx, 0.001)
+            X = model(idx, 0.000001)
             logits = mlp(X)
             preds = torch.argmax(logits, dim=1)
             correct += torch.sum(preds == labels[idx]).float()
@@ -51,8 +52,9 @@ def test(model, mlp, labels, loader):
     return (correct*100)/total
     
 def train(model, mlp):
+    print(args)
     opt = torch.optim.AdamW(list(model.parameters())+list(mlp.parameters()), lr = args.lr, weight_decay = args.wd)
-    train_idx, test_idx = train_test_split(np.arange(len(model.labels)), test_size=0.2, stratify=model.labels)
+    train_idx, test_idx = train_test_split(np.arange(len(model.labels)), test_size=0.2)
     train_idx = torch.LongTensor(train_idx).to(args.device)
     test_idx = torch.LongTensor(test_idx).to(args.device)
     train_loader = DataLoader(train_idx, batch_size=args.batch_size, shuffle=True)
@@ -77,11 +79,11 @@ def train(model, mlp):
             for idx in train_loader:
                 opt.zero_grad()
                 
-                X = model(idx, 0.001)
+                X = model(idx, 0.000001)
                 logits = mlp(X)
                 preds = torch.argmax(logits, dim=1)
                 correct_train += torch.sum(preds == labels[idx]).float() 
-                loss = loss_fn(logits, labels[idx])*400
+                loss = loss_fn(logits, labels[idx])
                 loss.backward()
                 for name, param in model.named_parameters():
                     if param.grad is not None:
@@ -100,18 +102,30 @@ def train(model, mlp):
                     wandb.log({f'Alpha{k}_{d}':model.graph_feat.alphas[k][d].item()}, step=epoch+1)
             if test_acc > best_acc:
                 best_acc = test_acc
-                torch.save(model.state_dict(), f'bestalpha_{args.num_weights}')
-                torch.save(mlp.state_dict(), f'bestmlp_{args.num_weights}')      
+                model_path = f"pdo_data/pdo_models/model_{args.num_weights}.pth"
+
+                torch.save({
+                    'epoch': epoch,  # Save the current epoch number
+                    'model_state_dict': model.state_dict(),
+                    'mlp_state_dict': mlp.state_dict(),
+                    'optimizer_state_dict': opt.state_dict(),
+                    'best_acc': best_acc,
+                    'args': args
+                }, model_path)
     
             tq.set_description("Train acc = %.4f, Test acc = %.4f, Best acc = %.4f" % (train_acc.item(), test_acc.item(), best_acc))
+    print(f"Best accuracy : {test(model, mlp, labels, test_loader)}")
             
 if __name__ == '__main__':
-    model = PointCloudFeatLearning(args.raw_dir, args.full, args.num_weights, args.threshold, args.device).to(args.device)
+    model = PointCloudFeatLearning(args.raw_dir, args.full, args.task, args.num_weights, args.threshold, args.device).to(args.device)
     mlp = MLP(model.input_dim, args.hidden_dim, model.num_labels, args.num_layers).to(args.device)
-    torch.save(model.state_dict(), f'bestalpha_{args.num_weights}')
-    torch.save(mlp.state_dict(), f'bestmlp_{args.num_weights}')      
+    model_path = f"pdo_data/pdo_models/model_{args.num_weights}.pth"
+
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'mlp_state_dict': mlp.state_dict(),
+        'best_acc': 0,
+        'args': args
+    }, model_path)
+    
     train(model, mlp)
-    model.load_state_dict(torch.load(f'bestalpha_{args.num_weights}'))
-    mlp.load_state_dict(torch.load(f'bestmlp_{args.num_weights}'))
-    torch.save(model.graph_feat.alphas, f'bestweights_{args.num_weights}.pt')
-    print(f"Best accuracy : {test(model, mlp, labels, test_loader)}")

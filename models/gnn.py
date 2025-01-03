@@ -4,7 +4,38 @@ from torch_geometric.nn import GCNConv, GINConv, GATConv, SAGEConv
 from torch_geometric.nn import global_add_pool, global_mean_pool
 import torch.nn as nn
 import torch
+from torch_geometric.nn import MessagePassing
 
+class WeightedGCNLayer(MessagePassing):
+    def __init__(self, in_channels, out_channels):
+        super(WeightedGCNLayer, self).__init__(aggr='add')  # Aggregation method (sum)
+        self.linear = nn.Linear(in_channels, out_channels)
+
+    def forward(self, x, adj):
+        # x: Node feature matrix of shape [n, in_channels]
+        # adj: Weighted adjacency matrix [n, n] (learnable with gradients)
+        support = self.linear(x)  # Apply linear transformation
+        out = torch.matmul(adj, support)  # Weighted sum of neighbors
+        return out
+
+class PointCloudGCN(nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, n_points):
+        super(PointCloudGCN, self).__init__()
+        # GCN layers
+        self.gcn1 = WeightedGCNLayer(in_channels, hidden_channels)
+        self.gcn2 = WeightedGCNLayer(hidden_channels, hidden_channels)
+        self.gcn3 = WeightedGCNLayer(hidden_channels, out_channels)
+
+    def forward(self, x, W):
+        adj = torch.sigmoid(W)  # Optional: Ensure values are in [0, 1]
+
+        # Forward pass through the GCN layers
+        x = self.gcn1(x, adj)
+        x = F.relu(x)
+        x = self.gcn2(x, adj)
+        x = F.relu(x)
+        x = self.gcn3(x, adj)
+        return x
 class GCN(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
         super(GCN, self).__init__()

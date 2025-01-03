@@ -9,3 +9,11 @@ archive/
 playground.py
 playground.ipynb
 saved_models
+DGCNN.py
+DGCNN.sh
+pointnet_baseline.sh
+pointtransformer_baseline.py
+pointtransformer_baseline.sh
+tcells data/
+pdo_data/
+COVID_data/
