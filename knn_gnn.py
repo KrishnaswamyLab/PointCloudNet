@@ -1,6 +1,6 @@
 import warnings
 warnings.filterwarnings("ignore")
-from COVID_data.read_data_knn import read_data, get_dataloaders
+from COVID_data.read_knn import read_data, get_dataloaders
 from models.gnn import GCN, GIN, GAT, SAGE
 from argparse import ArgumentParser
 import torch
@@ -8,15 +8,15 @@ from tqdm import tqdm
 import numpy as np
 
 parser = ArgumentParser(description="KNN GNN")
-parser.add_argument('--raw_dir', type=str, default = 'pdo_data', help="Directory where the raw data is stored")
+parser.add_argument('--raw_dir', type=str, default = 'COVID_data', help="Directory where the raw data is stored")
 parser.add_argument('--full', action='store_true', help="Directory where the raw data is stored")
 parser.add_argument('--task', type=str, default = 'treatment', help="Task on PDO data")
 parser.add_argument('--model', type=str, default = 'GCN', help="Directory where the raw data is stored")
 parser.add_argument('--hidden_dim', type=int, default= 150, help="Hidden dim for the MLP")
-parser.add_argument('--num_layers', type=int, default= 3, help="Number of MLP layers")
+parser.add_argument('--num_layers', type=int, default= 5, help="Number of MLP layers")
 parser.add_argument('--batch_size', type=int, default= 32, help="Batch size")
-parser.add_argument('--num_neighbors', type=int, default= 5, help="Number of neighbors for KNN graph")
-parser.add_argument('--lr', type=float, default= 1e-2, help="Learnign Rate")
+parser.add_argument('--num_neighbors', type=int, default= 3, help="Number of neighbors for KNN graph")
+parser.add_argument('--lr', type=float, default= 3e-3, help="Learnign Rate")
 parser.add_argument('--wd', type=float, default= 3e-4, help="Weight decay")
 parser.add_argument('--num_epochs', type=int, default= 20, help="Number of epochs")
 parser.add_argument('--gpu', type=int, default= 0, help="GPU index")
@@ -63,7 +63,7 @@ else:
 
 if __name__ == '__main__':
     print(args)
-    graphs, num_labels, train_idx, test_idx = read_data(args.raw_dir, args.num_neighbors, args.task)
+    graphs, num_labels, train_idx, test_idx = read_data(args.raw_dir, args.num_neighbors, args.full)
     train_loader, test_loader = get_dataloaders(graphs, train_idx, test_idx)
     mse = []
     for i in range(10):
