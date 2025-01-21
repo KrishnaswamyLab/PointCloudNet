@@ -17,3 +17,9 @@ pointtransformer_baseline.sh
 tcells data/
 pdo_data/
 COVID_data/
+main_covid_kfold.sh
+"main_melanoma_kfold copy.sh"
+main_melanoma_kfold.sh
+main_melanoma.sh
+main_pdo_kfold.sh
+main_pdo.sh
