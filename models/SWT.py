@@ -37,7 +37,6 @@ class SimplicialWaveletTransform():
         B1 = torch.zeros((n, num_edges), device=self.adj.device)
         B1[i, torch.arange(num_edges)] = weights 
         B1[j, torch.arange(num_edges)] = weights
-        print(f"B1 shape:{B1.shape}")
         return B1
 
     def compute_B2(self):
@@ -75,7 +74,6 @@ class SimplicialWaveletTransform():
         for m,j in enumerate(self.triangles):
             for k in idx:
                 B2[self.indices[1][frozenset(j[k])], self.indices[2][frozenset(j)]] = edge_weights[self.indices[1][frozenset(j[k])]]
-        print(f"B2 shape:{B2.shape}")
         return B2
     
     def calculate_simplex_features(self):
@@ -98,13 +96,14 @@ class SimplicialWaveletTransform():
         P_L = [None]*len(self.B)
         for i in range(len(self.B)):
             if(self.B[i] is not None):
-                P_B[i] = (torch.linalg.pinv(torch.diag(self.B[i].sum(axis=1)))@self.B[i]).to(self.device)
+                P_B[i] = (torch.linalg.inv(torch.diag(self.B[i].sum(axis=1)) + torch.eye(self.B[i].shape[0]).to(self.device))@self.B[i]).to(self.device)
         for i in range(1, len(self.B)):
             ul = self.B[i].T@self.B[i]             
-            P_U[i] = (ul@torch.linalg.pinv(torch.diag(ul.sum(axis=1)))).to(self.device)
+            
+            P_U[i] = (ul@torch.linalg.inv(torch.diag(ul.sum(axis=1)) + torch.eye(ul.shape[0]).to(self.device))).to(self.device)
         for i in range(0,len(self.B)-1):
             ll = self.B[i+1]@self.B[i+1].T
-            P_L[i] = (ll@torch.linalg.pinv(torch.diag(ll.sum(axis=1)))).to(self.device)
+            P_U[i] = (ll@torch.linalg.inv(torch.diag(ll.sum(axis=1)) + torch.eye(ll.shape[0]).to(self.device))).to(self.device)
         return P_B, P_L, P_U
 
     def message_passing(self, X, include_boundary):

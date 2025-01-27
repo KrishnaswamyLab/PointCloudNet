@@ -23,3 +23,7 @@ main_melanoma_kfold.sh
 main_melanoma.sh
 main_pdo_kfold.sh
 main_pdo.sh
+persistence_models/
+persistence_covid.sh
+persistence_melanoma.sh
+melanoma_pc_persistence.npy

@@ -37,7 +37,7 @@ class GraphFeatLearningLayer(nn.Module):
             W = torch.where(W < self.threshold, torch.zeros_like(W), W)
             gwt = GraphWaveletTransform(W, X_bar, self.device)
             PSI.append(gwt.generate_timepoint_feature())
-        return torch.cat(PSI, dim = 1)
+        return torch.cat(PSI, dim = 1).mean(0)
 
 class SimplicialFeatLearningLayer(nn.Module):
     def __init__(self, n_weights, dimension, threshold, device):
@@ -53,11 +53,8 @@ class SimplicialFeatLearningLayer(nn.Module):
         for i in range(self.n_weights):
             X_bar = (point_cloud)*self.alphas[i]
             W = compute_dist(X_bar)
-            W = torch.exp(-(W / 0.01))
-            # W = 1/(W + eps)
-            # W[W==(1/eps)] = 0
-            import pdb; pdb.set_trace()
-            W[W<self.threshold] = 0
+            W = torch.exp(-(W / 10))
+            W = torch.where(W < self.threshold, torch.zeros_like(W), W)
             swt = SimplicialWaveletTransform(W, X_bar, self.threshold, self.device)
             PSI.append(swt.calculate_wavelet_coeff(3, output_size))
         return torch.cat(PSI)
@@ -109,6 +106,36 @@ class PointCloudFeatLearning(nn.Module):
             torch.cuda.empty_cache()
             gc.collect()
         return torch.stack(PSI, dim=0)
+    
+
+class PointCloudNetPersistencePrediction(nn.Module):
+    def __init__(self, raw_dir, full, n_weights, threshold, model, device):
+        super(PointCloudNetPersistencePrediction, self).__init__()
+        self.raw_dir = raw_dir
+        data = np.load(os.path.join(self.raw_dir, 'pc_persistence.npy'), allow_pickle = True)
+
+        self.subsampled_pcs = [torch.tensor(i['pc'], dtype=torch.float) for i in data]
+        h0 = torch.from_numpy(np.vstack([i['h0_bc'] for i in data]))
+        h1 = torch.from_numpy(np.vstack([i['h1_bc'] for i in data]))
+        self.labels = F.normalize(torch.cat([h0, h1], 1))
+        self.dimension = self.subsampled_pcs[0].shape[1]
+        if(model=='graph'):
+            self.graph_feat = GraphFeatLearningLayer(n_weights, self.dimension, threshold, device)
+        else:
+            self.graph_feat = SimplicialFeatLearningLayer(n_weights, self.dimension, threshold, device)
+
+        self.input_dim = self.graph_feat(self.subsampled_pcs[0].to(device), 0.000001).shape[0]
+        self.device = device
+    
+    def forward(self, batch, eps):
+        PSI = []
+        for i in batch:
+            psi = self.graph_feat(self.subsampled_pcs[i].to(self.device), eps)
+            PSI.append(psi)#.mean(0))
+            del(psi)
+            torch.cuda.empty_cache()
+            gc.collect()
+        return torch.stack(PSI, dim=0)
 
 class MLP(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
@@ -127,4 +154,4 @@ class MLP(nn.Module):
         X = self.bn(X)
         for i in range(len(self.layers)-1):
             X = F.relu(self.layers[i](X))
-        return self.layers[-1](X)
+        return (self.layers[-1](X))

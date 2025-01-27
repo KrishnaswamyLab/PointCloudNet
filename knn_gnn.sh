@@ -6,8 +6,8 @@
 #SBATCH --partition=pi_krishnaswamy
 #SBATCH --gpus=1
 #SBATCH --mem=40G
-#SBATCH --output=./logs/slurm/knn/%x_%j.out
-#SBATCH --error=./logs/slurm/knn/%x_%j.err
+#SBATCH --output=./logs/slurm/persistence/baseline/%x_%j.out
+#SBATCH --error=./logs/slurm/persistence/baseline/%x_%j.err
 cd /home/hm638/PointCloudNet
 conda init
 conda activate pcenv
@@ -21,8 +21,3 @@ python knn_gnn.py --model GCN --raw_dir melanoma_data_full
 python knn_gnn.py --model SAGE --raw_dir melanoma_data_full
 python knn_gnn.py --model GAT --raw_dir melanoma_data_full
 python knn_gnn.py --model GIN --raw_dir melanoma_data_full
-
-python knn_gnn.py --model GCN --raw_dir melanoma_data_full --full
-python knn_gnn.py --model SAGE --raw_dir melanoma_data_full --full
-python knn_gnn.py --model GAT --raw_dir melanoma_data_full --full
-python knn_gnn.py --model GIN --raw_dir melanoma_data_full --full

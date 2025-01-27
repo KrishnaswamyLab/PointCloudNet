@@ -144,7 +144,7 @@ class point_transformer(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         y = batch.y
         logits = self(batch)
-        loss = F.nll_loss(logits, y)
+        loss = F.mse_loss(logits, y)
         self.log("train_loss", loss)
         return loss
 
@@ -152,33 +152,34 @@ class point_transformer(pl.LightningModule):
         # breakpoint()
         y = val_batch.y
         logits = self(val_batch)
-        loss = F.nll_loss(logits, y)
-        self.log("val_loss", loss)
+        # loss = F.mse_loss(logits, y)*len(logits)
+        # self.log("val_loss", loss)
 
-        self.validation_step_outputs.append({'val_loss': loss,'y_hat': logits, 'y': y})
+        self.validation_step_outputs.append({'y_hat': logits, 'y': y})
     
     def on_validation_epoch_end(self):
         outputs = self.validation_step_outputs
         y_hat = torch.cat([x['y_hat'] for x in outputs])
         y = torch.cat([x['y'] for x in outputs])
-        acc = torch.sum(y_hat.argmax(dim=1) == y).item() / (len(y) * 1.0)
-        self.log('val_acc', acc)
-        self.validation_step_outputs.clear()
-        return acc
+        # acc = torch.sum(y_hat.argmax(dim=1) == y).item() / (len(y) * 1.0)
+        # self.log('val_acc', acc)
+        # self.validation_step_outputs.clear()
+        return F.mse_loss(y_hat, y)
+    
     def test_step(self, val_batch, batch_idx):
         #breakpoint()
         y = val_batch.y
         logits = self(val_batch)
-        loss = F.nll_loss(logits, y)
-        self.log("test_loss", loss)
-        self.test_step_outputs.append({'test_loss': loss,'y_hat': logits, 'y': y})
-        return loss
+        # loss = F.mse_loss(logits, y)
+        # self.log("test_loss", loss)
+        self.test_step_outputs.append({'y_hat': logits, 'y': y})
+        # return loss
     
     def on_test_epoch_end(self):
         outputs = self.test_step_outputs
         y_hat = torch.cat([x['y_hat'] for x in outputs])
         y = torch.cat([x['y'] for x in outputs])
-        acc = torch.sum(y_hat.argmax(dim=1) == y).item() / (len(y) * 1.0)
-        self.log('test_acc', acc)
-        self.test_step_outputs.clear()
-        return acc
+        # acc = torch.sum(y_hat.argmax(dim=1) == y).item() / (len(y) * 1.0)
+        # self.log('test_acc', acc)
+        # self.test_step_outputs.clear()
+        return F.mse_loss(y_hat, y)

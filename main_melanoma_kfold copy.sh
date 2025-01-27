@@ -13,8 +13,26 @@ conda init
 conda activate pcenv
 
 
-python main.py --raw_dir melanoma_data_full --threshold 0.35 --full --lr 1e-5
-python main.py --raw_dir melanoma_data_full --threshold 0.35 --full --lr 1e-5
-python main.py --raw_dir melanoma_data_full --threshold 0.35 --full --lr 1e-5
-python main.py --raw_dir melanoma_data_full --threshold 0.35 --full --lr 1e-5
-python main.py --raw_dir melanoma_data_full --threshold 0.35 --full --lr 1e-5
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 4
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 4
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 4
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 4
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 4
+
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 1
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 1
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 1
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 1
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 1
+
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 2
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 2
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 2
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 2
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 2
+
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 8
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 8
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 8
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 8
+python main.py --raw_dir melanoma_data_full --full --lr 1e-4 --threshold 0.35 --num_weights 8
