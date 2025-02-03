@@ -5,6 +5,7 @@ PointTransformer pytorch implementation: https://github.com/pyg-team/pytorch_geo
 import os.path as osp
 from typing import Any
 from pytorch_lightning.utilities.types import STEP_OUTPUT
+from sklearn.metrics import roc_auc_score
 
 import torch
 import torch.nn.functional as F
@@ -144,7 +145,7 @@ class point_transformer(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         y = batch.y
         logits = self(batch)
-        loss = F.mse_loss(logits, y)
+        loss = F.cross_entropy(logits, y)
         self.log("train_loss", loss)
         return loss
 
@@ -159,12 +160,15 @@ class point_transformer(pl.LightningModule):
     
     def on_validation_epoch_end(self):
         outputs = self.validation_step_outputs
-        y_hat = torch.cat([x['y_hat'] for x in outputs])
+        # y_hat = torch.cat([x['y_hat'] for x in outputs])
+        y_hat = torch.argmax(torch.cat([x['y_hat'] for x in outputs]),1)
         y = torch.cat([x['y'] for x in outputs])
         # acc = torch.sum(y_hat.argmax(dim=1) == y).item() / (len(y) * 1.0)
         # self.log('val_acc', acc)
         # self.validation_step_outputs.clear()
-        return F.mse_loss(y_hat, y)
+        return roc_auc_score(y.cpu().detach().numpy(), y_hat.cpu().detach().numpy())
+        # return F.mse_loss(y_hat, y)
+        # return F.mse_loss(y_hat, y)
     
     def test_step(self, val_batch, batch_idx):
         #breakpoint()
@@ -177,9 +181,11 @@ class point_transformer(pl.LightningModule):
     
     def on_test_epoch_end(self):
         outputs = self.test_step_outputs
-        y_hat = torch.cat([x['y_hat'] for x in outputs])
+        # y_hat = torch.cat([x['y_hat'] for x in outputs])
+        y_hat = torch.argmax(torch.cat([x['y_hat'] for x in outputs]),1)
         y = torch.cat([x['y'] for x in outputs])
         # acc = torch.sum(y_hat.argmax(dim=1) == y).item() / (len(y) * 1.0)
         # self.log('test_acc', acc)
         # self.test_step_outputs.clear()
-        return F.mse_loss(y_hat, y)
+        return roc_auc_score(y.cpu().detach().numpy(), y_hat.cpu().detach().numpy())
+        # return F.mse_loss(y_hat, y)

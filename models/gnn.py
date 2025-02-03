@@ -1,6 +1,6 @@
 from torch.nn import Linear
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv, GINConv, GATConv, SAGEConv
+from torch_geometric.nn import GCNConv, GINConv, GATConv, SAGEConv, TransformerConv
 from torch_geometric.nn import global_add_pool, global_mean_pool
 import torch.nn as nn
 import torch
@@ -17,7 +17,29 @@ class WeightedGCNLayer(MessagePassing):
         support = self.linear(x)  # Apply linear transformation
         out = torch.matmul(adj, support)  # Weighted sum of neighbors
         return out
+class GraphTransformerWithPE(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_layers, num_heads, pe_dim):
+        super(GraphTransformerWithPE, self).__init__()
+        self.pe_dim = pe_dim
+        self.layers = nn.ModuleList([
+            TransformerConv(input_dim if i == 0 else hidden_dim, hidden_dim//num_heads, heads=num_heads)
+            for i in range(num_layers)
+        ])
+        self.mlp_head = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim)
+        )
 
+    def forward(self, x, edge_index, batch, pe):
+        x = x + pe
+        for layer in self.layers:
+            x = layer(x, edge_index)
+            x = F.relu(x)
+
+        x_pooled = global_mean_pool(x, batch) 
+        out = self.mlp_head(x_pooled)
+        return out
 class PointCloudGCN(nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, n_points):
         super(PointCloudGCN, self).__init__()

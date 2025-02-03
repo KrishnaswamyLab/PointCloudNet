@@ -1,8 +1,9 @@
 import warnings
 warnings.filterwarnings("ignore")
 from COVID_data.read_knn import read_data,read_data_persistence, get_dataloaders
-from models.gnn import GCN, GIN, GAT, SAGE
+from models.gnn import GCN, GIN, GAT, SAGE, GraphTransformerWithPE
 from argparse import ArgumentParser
+from torch_geometric.transforms import AddRandomWalkPE
 import torch
 from torchinfo import summary
 from tqdm import tqdm
@@ -13,25 +14,25 @@ parser.add_argument('--raw_dir', type=str, default = 'COVID_data', help="Directo
 parser.add_argument('--full', action='store_true', help="Directory where the raw data is stored")
 parser.add_argument('--task', type=str, default = 'treatment', help="Task on PDO data")
 parser.add_argument('--model', type=str, default = 'GCN', help="Directory where the raw data is stored")
-parser.add_argument('--hidden_dim', type=int, default= 150, help="Hidden dim for the MLP")
-parser.add_argument('--num_layers', type=int, default= 5, help="Number of MLP layers")
-parser.add_argument('--batch_size', type=int, default= 32, help="Batch size")
-parser.add_argument('--num_neighbors', type=int, default= 3, help="Number of neighbors for KNN graph")
+parser.add_argument('--hidden_dim', type=int, default= 160, help="Hidden dim for the MLP")
+parser.add_argument('--num_layers', type=int, default= 3, help="Number of MLP layers")
+parser.add_argument('--batch_size', type=int, default= 16, help="Batch size")
+parser.add_argument('--num_neighbors', type=int, default= 5, help="Number of neighbors for KNN graph")
 parser.add_argument('--lr', type=float, default= 3e-3, help="Learnign Rate")
 parser.add_argument('--wd', type=float, default= 3e-4, help="Weight decay")
-parser.add_argument('--num_epochs', type=int, default= 200, help="Number of epochs")
+parser.add_argument('--num_epochs', type=int, default= 10, help="Number of epochs")
 parser.add_argument('--gpu', type=int, default= 0, help="GPU index")
 
 def test(loader):
-     model.eval()
-
-     mse = 0
-     for data in loader:  
-        out = model(data.x, data.edge_index, data.batch)  
+    model.eval()
+    #  correct = 0
+    mse = 0
+    for data in loader:  
+        out = model(data.x, data.edge_index, data.batch, data.pe)  
         # preds = out.argmax(dim=1)
         # correct += torch.sum(preds == torch.LongTensor(data.y)).float()
         mse += (torch.nn.functional.mse_loss(out, data.y) * len(data.y))
-     return mse*1000 / len(loader.dataset)  
+    return mse*1000 / len(loader.dataset)  
 
 
 def train(model, train_loader, test_loader):
@@ -44,8 +45,9 @@ def train(model, train_loader, test_loader):
             model.train()
             
             for step, data in enumerate(train_loader):  
-                out = model(data.x, data.edge_index, data.batch)
+                out = model(data.x, data.edge_index, data.batch, data.pe)
                 loss = loss_fn(out, data.y)*1000
+                # loss = loss_fn(out, torch.LongTensor(data.y))
                 loss.backward()
                 opt.step()
                 opt.zero_grad()
@@ -66,17 +68,25 @@ else:
 if __name__ == '__main__':
     print(args)
     graphs, num_labels, train_idx, test_idx = read_data_persistence(args.raw_dir, args.num_neighbors, args.full)
+    transform = AddRandomWalkPE(walk_length = graphs[0].x.shape[1], attr_name = 'pe')
+    if(args.raw_dir == "pdo_data"):
+        for i in range(len(graphs)):
+            graphs[i].pe = torch.zeros_like(graphs[i].x)
+    else:
+        graphs = [transform(graph) for graph in tqdm(graphs)]
+    
     train_loader, test_loader = get_dataloaders(graphs, train_idx, test_idx)
     mse = []
-    for i in range(10):
-        if args.model == 'GCN':
-            model = GCN(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
-        elif args.model == 'GIN':
-            model = GIN(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
-        elif args.model == 'GAT':
-            model = GAT(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
-        elif args.model == 'SAGE':
-            model = SAGE(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
+    for i in range(5):
+        model = GraphTransformerWithPE(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers, 4, graphs[0].x.shape[1])
+        # if args.model == 'GCN':
+        #     model = GCN(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
+        # elif args.model == 'GIN':
+        #     model = GIN(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
+        # elif args.model == 'GAT':
+        #     model = GAT(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
+        # elif args.model == 'SAGE':
+        #     model = SAGE(graphs[0].x.shape[1], args.hidden_dim, num_labels, args.num_layers).float()
         mse.append(train(model, train_loader, test_loader).item())
     mse = np.array(mse)
     print(f"Average:{mse.mean()}, Std:{mse.std()}")

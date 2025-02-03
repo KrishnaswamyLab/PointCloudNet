@@ -3,10 +3,11 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
+from utils.read_data import load_data_persistence
 import wandb
 from torchinfo import summary
-
-from models.graph_learning import PointCloudNetPersistencePrediction, MLP
+from torchviz import make_dot
+from models.graph_learning import HiPoNet, MLP
 from argparse import ArgumentParser
 
 import gc
@@ -40,33 +41,33 @@ else:
 
 loss_fn = torch.nn.MSELoss()
 
-def test(model, mlp, labels, loader):
+def test(model, mlp, PCs, labels, loader):
     model.eval()
     mlp.eval()
     mse = 0
     total = 0                   
     with torch.no_grad():
         for idx in (loader):
-            X = model(idx, 0.000001)
+            X = model([PCs[i].to(args.device) for i in idx], 5)
             preds = mlp(X)
             mse += (loss_fn(preds, labels[idx]) * len(idx))
             total += len(idx)
     return mse*1000/total
     
-def train(model, mlp):
+def train(model, mlp, PCs, labels):
     print(args)
     opt = torch.optim.AdamW(list(model.parameters())+list(mlp.parameters()), lr = args.lr, weight_decay = args.wd)
-    train_idx, test_idx = train_test_split(np.arange(len(model.labels)), test_size=0.2)
+    train_idx, test_idx = train_test_split(np.arange(len(labels)), test_size=0.2)
     train_idx = torch.LongTensor(train_idx).to(args.device)
     test_idx = torch.LongTensor(test_idx).to(args.device)
     train_loader = DataLoader(train_idx, batch_size=args.batch_size, shuffle=True)
     test_loader = DataLoader(test_idx, batch_size=args.batch_size)
-    labels = model.labels.to(args.device).float()
-    for k in range(len(model.graph_feat.alphas)):
-        for d in range(len(model.graph_feat.alphas[k])):
-            wandb.log({f'Alpha{k}_{d}':model.graph_feat.alphas[k][d].item()}, step=0)
-    train_mse = test(model, mlp, labels, train_loader)
-    best_mse = test(model, mlp, labels, test_loader)
+    labels = labels.to(args.device).float()
+    for k in range(len(model.layer.alphas)):
+        for d in range(len(model.layer.alphas[k])):
+            wandb.log({f'Alpha{k}_{d}':model.layer.alphas[k][d].item()}, step=0)
+    train_mse = test(model, mlp, PCs, labels, train_loader)
+    best_mse = test(model, mlp, PCs, labels, test_loader)
     wandb.log({'Train MSE':train_mse.item(), 'Test MSE':best_mse.item()}, step=0)
     with tqdm(range(args.num_epochs)) as tq:
         for e, epoch in enumerate(tq):
@@ -75,12 +76,13 @@ def train(model, mlp):
             mlp.train()
             for idx in (train_loader):
                 opt.zero_grad()
+                X = model([PCs[i].to(args.device) for i in idx], 5)
                 
-                X = model(idx, 0.000001)
+                # X = model(idx, 0.000001)
                 logits = mlp(X)
                 loss = loss_fn(logits, labels[idx]) * 1000
                 if(args.orthogonal):
-                    loss += 0.1*(model.graph_feat.alphas@model.graph_feat.alphas.T - torch.eye(args.num_weights).to(args.device)).square().mean()
+                    loss += 0.1*(model.layer.alphas@model.layer.alphas.T - torch.eye(args.num_weights).to(args.device)).square().mean()
                 loss.backward()
                 for name, param in model.named_parameters():
                     if param.grad is not None:
@@ -91,31 +93,34 @@ def train(model, mlp):
                 torch.cuda.empty_cache()
                 gc.collect()
                     
-            train_mse = test(model, mlp, labels, train_loader)
-            test_mse = test(model, mlp, labels, test_loader)
+            train_mse = test(model, mlp, PCs, labels, train_loader)
+            test_mse = test(model, mlp, PCs, labels, test_loader)
             wandb.log({'Loss':t_loss, 'Train MSE':train_mse.item(), 'Test MSE':test_mse.item()}, step=epoch+1)
-            for k in range(len(model.graph_feat.alphas)):
-                for d in range(len(model.graph_feat.alphas[k])):
-                    wandb.log({f'Alpha{k}_{d}':model.graph_feat.alphas[k][d].item()}, step=epoch+1)
+            for k in range(len(model.layer.alphas)):
+                for d in range(len(model.layer.alphas[k])):
+                    wandb.log({f'Alpha{k}_{d}':model.layer.alphas[k][d].item()}, step=epoch+1)
             if test_mse < best_mse:
                 best_mse = test_mse
                 model_path = f"persistence_models/model_{args.num_weights}.pth"
 
-                torch.save({
-                    'epoch': epoch,  # Save the current epoch number
-                    'model_state_dict': model.state_dict(),
-                    'mlp_state_dict': mlp.state_dict(),
-                    'optimizer_state_dict': opt.state_dict(),
-                    'best_mse': best_mse,
-                    'args': args
-                }, model_path)
+                # torch.save({
+                #     'epoch': epoch,  # Save the current epoch number
+                #     'model_state_dict': model.state_dict(),
+                #     'mlp_state_dict': mlp.state_dict(),
+                #     'optimizer_state_dict': opt.state_dict(),
+                #     'best_mse': best_mse,
+                #     'args': args
+                # }, model_path)
     
             tq.set_description("Train MSE = %.4f, Test MSE = %.4f, Best MSE = %.4f" % (train_mse.item(), test_mse.item(), best_mse))
     print(f"Best MSE : {best_mse}")
             
 if __name__ == '__main__':
-    model = PointCloudNetPersistencePrediction(args.raw_dir, args.full, args.num_weights, args.threshold, args.model, args.device).to(args.device).float()
-    mlp = MLP(model.input_dim, args.hidden_dim, model.labels.shape[1], args.num_layers).to(args.device).float()
+    PCs, labels, num_labels = load_data_persistence(args.raw_dir, args.full)
+    model = HiPoNet(args.model, PCs[0].shape[1], args.num_weights, args.threshold, args.device).to(args.device)
+    with torch.no_grad():
+        input_dim = model([PCs[0].to(args.device)], 10).shape[1]
+    mlp = MLP(input_dim, args.hidden_dim, num_labels, args.num_layers).to(args.device)
     model_path = f"persistence_models/model_{args.raw_dir}_{args.num_weights}_{args.model}_{args.orthogonal}.pth"
 
     torch.save({
@@ -125,4 +130,4 @@ if __name__ == '__main__':
         'args': args
     }, model_path)
     
-    train(model, mlp)
+    train(model, mlp, PCs, labels)

@@ -4,9 +4,10 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 import wandb
+from utils.read_data import load_data
 from torchinfo import summary
 
-from models.graph_learning import PointCloudFeatLearning, MLP
+from models.graph_learning import HiPoNet, MLP
 from argparse import ArgumentParser
 
 import gc
@@ -19,6 +20,7 @@ parser.add_argument('--full', action='store_true')
 parser.add_argument('--task', type=str, default = 'prolif', help="Task on PDO data")
 parser.add_argument('--num_weights', type=int, default=2, help="Number of weights")
 parser.add_argument('--threshold', type=float, default= 0.5, help="Threshold for creating the graph")
+parser.add_argument('--model', type=str, default= "graph", help="Threshold for creating the graph")
 parser.add_argument('--hidden_dim', type=int, default= 250, help="Hidden dim for the MLP")
 parser.add_argument('--num_layers', type=int, default= 3, help="Number of MLP layers")
 parser.add_argument('--lr', type=float, default= 0.001, help="Learnign Rate")
@@ -38,39 +40,33 @@ else:
     args.device = 'cpu'
 
 
-def test(model, mlp, labels, loader):
+def test(model, mlp, PCs, labels, loader):
     model.eval()
     mlp.eval()
     correct = 0
     total = 0                   
     with torch.no_grad():
         for idx in (loader):
-            X = model(idx, 0.000001)
+            # X = model(idx, 0.000001)
+            X = model([PCs[i].to(args.device) for i in idx], 5)
             logits = mlp(X)
             preds = torch.argmax(logits, dim=1)
             correct += torch.sum(preds == labels[idx]).float()
             total += len(idx)
     return (correct*100)/total
     
-def train(model, mlp):
+def train(model, mlp, PCs, labels):
     print(args)
     opt = torch.optim.AdamW(list(model.parameters())+list(mlp.parameters()), lr = args.lr, weight_decay = args.wd)
-    train_idx, test_idx = train_test_split(np.arange(len(model.labels)), test_size=0.2)
+    train_idx, test_idx = train_test_split(np.arange(len(labels)), test_size=0.2)
     train_idx = torch.LongTensor(train_idx).to(args.device)
     test_idx = torch.LongTensor(test_idx).to(args.device)
     train_loader = DataLoader(train_idx, batch_size=args.batch_size, shuffle=True)
     test_loader = DataLoader(test_idx, batch_size=args.batch_size)
-    labels = torch.LongTensor(model.labels).to(args.device)
+    # labels = torch.LongTensor(model.labels).to(args.device)
+    labels = torch.LongTensor(labels).to(args.device)
     loss_fn = torch.nn.CrossEntropyLoss()
-    best_acc = 0
-    for k in range(len(model.graph_feat.alphas)):
-        for d in range(len(model.graph_feat.alphas[k])):
-            wandb.log({f'Alpha{k}_{d}':model.graph_feat.alphas[k][d].item()}, step=0)
-    train_acc = test(model, mlp, labels, train_loader)
-    test_acc = test(model, mlp, labels, test_loader)
-    wandb.log({'Train acc':train_acc.item(), 'Test acc':test_acc.item()}, step=0)
-    if test_acc > best_acc:
-            best_acc = test_acc
+    best_acc = test(model, mlp, PCs, labels, test_loader)
     with tqdm(range(args.num_epochs)) as tq:
         for e, epoch in enumerate(tq):
             correct_train = 0
@@ -80,11 +76,11 @@ def train(model, mlp):
             for idx in (train_loader):
                 opt.zero_grad()
                 
-                X = model(idx, 0.000001)
+                X = model([PCs[i].to(args.device) for i in idx], 5)
                 logits = mlp(X)
                 preds = torch.argmax(logits, dim=1)
                 correct_train += torch.sum(preds == labels[idx]).float() 
-                loss = loss_fn(logits, labels[idx]) + 0.1*(model.graph_feat.alphas@model.graph_feat.alphas.T - torch.eye(args.num_weights).to(args.device)).square().mean()
+                loss = loss_fn(logits, labels[idx])# + 0.1*(model.layer.alphas@model.layer.alphas.T - torch.eye(args.num_weights).to(args.device)).square().mean()
                 loss.backward()
                 for name, param in model.named_parameters():
                     if param.grad is not None:
@@ -95,38 +91,41 @@ def train(model, mlp):
                 torch.cuda.empty_cache()
                 gc.collect()
                     
-            train_acc = test(model, mlp, labels, train_loader)
-            test_acc = test(model, mlp, labels, test_loader)
+            train_acc = correct_train*100/len(train_idx)
+            test_acc = test(model, mlp, PCs, labels, test_loader)
             wandb.log({'Loss':t_loss, 'Train acc':train_acc.item(), 'Test acc':test_acc.item()}, step=epoch+1)
-            for k in range(len(model.graph_feat.alphas)):
-                for d in range(len(model.graph_feat.alphas[k])):
-                    wandb.log({f'Alpha{k}_{d}':model.graph_feat.alphas[k][d].item()}, step=epoch+1)
+            for k in range(len(model.layer.alphas)):
+                for d in range(len(model.layer.alphas[k])):
+                    wandb.log({f'Alpha{k}_{d}':model.layer.alphas[k][d].item()}, step=epoch+1)
             if test_acc > best_acc:
                 best_acc = test_acc
                 model_path = args.raw_dir + f"/simplex_models/model_{args.num_weights}.pth"
 
-                torch.save({
-                    'epoch': epoch,  # Save the current epoch number
-                    'model_state_dict': model.state_dict(),
-                    'mlp_state_dict': mlp.state_dict(),
-                    'optimizer_state_dict': opt.state_dict(),
-                    'best_acc': best_acc,
-                    'args': args
-                }, model_path)
+                # torch.save({
+                #     'epoch': epoch,  # Save the current epoch number
+                #     'model_state_dict': model.state_dict(),
+                #     'mlp_state_dict': mlp.state_dict(),
+                #     'optimizer_state_dict': opt.state_dict(),
+                #     'best_acc': best_acc,
+                #     'args': args
+                # }, model_path)
     
             tq.set_description("Train acc = %.4f, Test acc = %.4f, Best acc = %.4f" % (train_acc.item(), test_acc.item(), best_acc))
     print(f"Best accuracy : {best_acc}")
             
 if __name__ == '__main__':
-    model = PointCloudFeatLearning(args.raw_dir, args.full, args.task, args.num_weights, args.threshold, args.device).to(args.device)
-    mlp = MLP(model.input_dim, args.hidden_dim, model.labels.shape[1], args.num_layers).to(args.device)
+    PCs, labels, num_labels = load_data(args.raw_dir, args.full)
+    model = HiPoNet(args.model, PCs[0].shape[1], args.num_weights, args.threshold, args.device).to(args.device)
+    with torch.no_grad():
+        input_dim = model([PCs[0].to(args.device)], 10).shape[1]
+    mlp = MLP(input_dim, args.hidden_dim, num_labels, args.num_layers).to(args.device)
     model_path = f"saved_models/model_{args.raw_dir}_{args.num_weights}_persistence_prediction.pth"
 
-    torch.save({
-        'model_state_dict': model.state_dict(),
-        'mlp_state_dict': mlp.state_dict(),
-        'best_acc': 0,
-        'args': args
-    }, model_path)
+    # torch.save({
+    #     'model_state_dict': model.state_dict(),
+    #     'mlp_state_dict': mlp.state_dict(),
+    #     'best_acc': 0,
+    #     'args': args
+    # }, model_path)
     
-    train(model, mlp)
+    train(model, mlp, PCs, labels)

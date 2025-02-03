@@ -60,8 +60,8 @@ class SimplicialWaveletTransform():
         ) 
         
         self.triangles = potential_triangles[valid_triangles_mask].cpu().numpy()
-        if(len(self.triangles)>1000):
-            self.triangles = self.triangles[:1000]
+        if(len(self.triangles)>250):
+            self.triangles = self.triangles[torch.randint(0, len(self.triangles), (250,))]
         num_triangles = self.triangles.shape[0]
         index = {}
         for k,v in enumerate(self.triangles.tolist()):

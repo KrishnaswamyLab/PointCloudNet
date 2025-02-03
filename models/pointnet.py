@@ -16,6 +16,7 @@ import torch_geometric.transforms as T
 from torch_geometric.data import Data
 from torch_geometric.datasets import ModelNet
 from torch_geometric.loader import DataLoader
+from sklearn.metrics import roc_auc_score
 from torch_geometric.nn import MLP, PointNetConv, fps, global_max_pool, radius
 #from torch_geometric.typing import WITH_TORCH_CLUSTER
 #from torch_geometric.typing import OptTensor, torch_cluster
@@ -91,7 +92,7 @@ class Pointnet_plus(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         y = batch.y
         logits = self(batch)
-        loss = F.mse_loss(logits, y)
+        loss = F.cross_entropy(logits, y)
         self.log("train_loss", loss)
         return loss
 
@@ -106,12 +107,11 @@ class Pointnet_plus(pl.LightningModule):
     
     def on_validation_epoch_end(self):
         outputs = self.validation_step_outputs
-        y_hat = torch.cat([x['y_hat'] for x in outputs])
+        y_hat = torch.argmax(torch.cat([x['y_hat'] for x in outputs]),1)
         y = torch.cat([x['y'] for x in outputs])
-        # acc = torch.sum(y_hat.argmax(dim=1) == y).item() / (len(y) * 1.0)
         # self.log('val_acc', acc)
         # self.validation_step_outputs.clear()
-        return F.mse_loss(y_hat, y)
+        return roc_auc_score(y.cpu().detach().numpy(), y_hat.cpu().detach().numpy())
     
     def test_step(self, val_batch, batch_idx):
         #breakpoint()
@@ -124,12 +124,13 @@ class Pointnet_plus(pl.LightningModule):
     
     def on_test_epoch_end(self):
         outputs = self.test_step_outputs
-        y_hat = torch.cat([x['y_hat'] for x in outputs])
+        # y_hat = torch.cat([x['y_hat'] for x in outputs])
+        y_hat = torch.argmax(torch.cat([x['y_hat'] for x in outputs]),1)
         y = torch.cat([x['y'] for x in outputs])
         # acc = torch.sum(y_hat.argmax(dim=1) == y).item() / (len(y) * 1.0)
         # self.log('test_acc', acc)
         # self.test_step_outputs.clear()
-        return F.mse_loss(y_hat, y)
+        return roc_auc_score(y.cpu().detach().numpy(), y_hat.cpu().detach().numpy())
 
 
 def PointNetLoading(raw_dir, full, batch_size, device):
@@ -173,7 +174,7 @@ def PointNetPersistenceLoading(raw_dir, full, batch_size, device):
 
         subsampled_pcs = [torch.tensor(i['pc'], dtype=torch.float) for i in data]
         h0 = torch.from_numpy(np.vstack([i['h0_bc'] for i in data]))
-        h1 = torch.from_numpy(np.vstack([i['h1_bc'] for i in data]))
+        h1 = torch.from_numpy(np.vstack([i['h1_bc'][:99] for i in data]))
         labels = F.normalize(torch.cat([h0, h1], 1)).to(device).float()
         train_idx, test_idx = train_test_split(np.arange(len(labels)), test_size = 0.2)
         val_idx, test_idx = train_test_split(test_idx, test_size = 0.5)
@@ -182,3 +183,21 @@ def PointNetPersistenceLoading(raw_dir, full, batch_size, device):
         val_loader = DataLoader([graphs[i] for i in val_idx], batch_size=batch_size, shuffle=False)
         test_loader = DataLoader([graphs[i] for i in test_idx], batch_size=batch_size, shuffle=False)
         return train_loader, val_loader, test_loader, subsampled_pcs[0].shape[1], labels.shape[1]
+
+def PointNetSpaceGMLoading(raw_dir, label_name, batch_size, device):
+        spatial_cords = torch.load(f"space_gm_preprocessed/spatial_cords_{raw_dir}_{label_name}.pt")
+        num_pcs = len(spatial_cords)
+        gene_expr = torch.load(f"space_gm_preprocessed/gene_expr_{raw_dir}_{label_name}.pt")
+        labels = torch.load(f"space_gm_preprocessed/labels_{raw_dir}_{label_name}.pt")
+        indices = torch.load(f"space_gm_preprocessed/indices_{raw_dir}_{label_name}.pt")
+        spatial_cords = [spatial_cords[i][indices[i]].float() for i in range(num_pcs)]
+        gene_expr = [gene_expr[i][indices[i]].float() for i in range(num_pcs)]
+    
+        train_idx, test_idx = train_test_split(np.arange(len(labels)), test_size = 0.2)
+        val_idx, test_idx = train_test_split(test_idx, test_size = 0.5)
+        # graphs = [Data(x = spatial_cords[i].float(), y = labels[i].view(1, labels.shape[1])).to(device) for i in range(len(labels))]
+        graphs = [Data(x = spatial_cords[i].float(), y = labels[i]).to(device) for i in range(len(labels))]
+        train_loader = DataLoader([graphs[i] for i in train_idx], batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader([graphs[i] for i in val_idx], batch_size=batch_size, shuffle=False)
+        test_loader = DataLoader([graphs[i] for i in test_idx], batch_size=batch_size, shuffle=False)
+        return train_loader, val_loader, test_loader, spatial_cords[0].shape[1], 2
