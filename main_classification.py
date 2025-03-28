@@ -22,7 +22,7 @@ parser.add_argument('--task', type=str, default = 'prolif', help="Task on PDO da
 parser.add_argument('--num_weights', type=int, default=2, help="Number of weights")
 parser.add_argument('--threshold', type=float, default= 0.5, help="Threshold for creating the graph")
 parser.add_argument('--sigma', type=float, default= 0.5, help="Bandwidth")
-parser.add_argument('--model', type=str, default= "graph", help="Threshold for creating the graph")
+parser.add_argument('--K', type=int, default= 1, help="Order of simplicial complex")
 parser.add_argument('--hidden_dim', type=int, default= 250, help="Hidden dim for the MLP")
 parser.add_argument('--num_layers', type=int, default= 3, help="Number of MLP layers")
 parser.add_argument('--lr', type=float, default= 0.01, help="Learnign Rate")
@@ -117,7 +117,7 @@ def train(model, mlp, PCs, labels):
             
 if __name__ == '__main__':
     PCs, labels, num_labels = load_data(args.raw_dir, args.full)
-    model = HiPoNet(args.model, PCs[0].shape[1], args.num_weights, args.threshold, args.device)
+    model = HiPoNet(PCs[0].shape[1], args.num_weights, args.threshold, args.K, args.device)
     model = nn.DataParallel(model).to(args.device)
     with torch.no_grad():
         input_dim = model([PCs[0].to(args.device)], 1).shape[1]

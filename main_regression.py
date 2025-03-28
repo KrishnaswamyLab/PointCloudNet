@@ -10,6 +10,9 @@ from torchviz import make_dot
 from models.graph_learning import HiPoNet, MLP
 from argparse import ArgumentParser
 
+import warnings
+warnings.filterwarnings("ignore")
+
 import gc
 gc.enable()
 
@@ -117,7 +120,7 @@ def train(model, mlp, PCs, labels):
             
 if __name__ == '__main__':
     PCs, labels, num_labels = load_data_persistence(args.raw_dir, args.full)
-    model = HiPoNet(args.model, PCs[0].shape[1], args.num_weights, args.threshold, args.device).to(args.device)
+    model = HiPoNet(PCs[0].shape[1], args.num_weights, args.threshold, args.K, args.device).to(args.device)
     with torch.no_grad():
         input_dim = model([PCs[0].to(args.device)], 10).shape[1]
     mlp = MLP(input_dim, args.hidden_dim, num_labels, args.num_layers).to(args.device)
