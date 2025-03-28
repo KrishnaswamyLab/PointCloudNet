@@ -47,7 +47,7 @@ def test(model, mlp, PCs, labels, loader):
     mse = 0
     total = 0                   
     with torch.no_grad():
-        for idx in (loader):
+        for idx in tqdm(loader):
             X = model([PCs[i].to(args.device) for i in idx], 5)
             preds = mlp(X)
             mse += (loss_fn(preds, labels[idx]) * len(idx))
@@ -123,11 +123,11 @@ if __name__ == '__main__':
     mlp = MLP(input_dim, args.hidden_dim, num_labels, args.num_layers).to(args.device)
     model_path = f"persistence_models/model_{args.raw_dir}_{args.num_weights}_{args.model}_{args.orthogonal}.pth"
 
-    torch.save({
-        'model_state_dict': model.state_dict(),
-        'mlp_state_dict': mlp.state_dict(),
-        'best_mse': 0,
-        'args': args
-    }, model_path)
+    # torch.save({
+    #     'model_state_dict': model.state_dict(),
+    #     'mlp_state_dict': mlp.state_dict(),
+    #     'best_mse': 0,
+    #     'args': args
+    # }, model_path)
     
     train(model, mlp, PCs, labels)

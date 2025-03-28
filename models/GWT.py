@@ -68,3 +68,10 @@ class GraphWaveletTransform(nn.Module):
         feats = torch.cat([F0, F1, F2], dim=1)
 
         return global_mean_pool(feats, batch)
+
+    def diffusion_only(self, batch):
+        diff_list = self.diffuse()  # list of length J
+        
+        feats = torch.cat(diff_list, dim=1)
+        
+        return global_mean_pool(feats, batch)

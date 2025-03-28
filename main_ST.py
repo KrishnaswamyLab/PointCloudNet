@@ -7,11 +7,11 @@ import numpy as np
 from libauc.losses import AUCMLoss
 from libauc.optimizers import PESG
 from tqdm import tqdm
-from utils.read_data import load_data_ST
+from utils.read_data import load_data_ST, load_data_ST_melanoma
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 import wandb
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, accuracy_score
 from torchinfo import summary
 
 from models.graph_learning import HiPoNet, MLP
@@ -34,11 +34,11 @@ parser.add_argument('--sigma', type=float, default= 0.5, help="Threshold for cre
 parser.add_argument('--spatial_threshold', type=float, default= 0.5, help="Threshold for creating the graph")
 parser.add_argument('--gene_threshold', type=float, default= 0.5, help="Threshold for creating the graph")
 parser.add_argument('--hidden_dim', type=int, default= 500, help="Hidden dim for the MLP")
-parser.add_argument('--num_layers', type=int, default= 1, help="Number of MLP layers")
-parser.add_argument('--lr', type=float, default= 3e-2, help="Learnign Rate")
+parser.add_argument('--num_layers', type=int, default= 2, help="Number of MLP layers")
+parser.add_argument('--lr', type=float, default= 3e-4, help="Learnign Rate")
 parser.add_argument('--wd', type=float, default= 3e-3, help="Weight decay")
 parser.add_argument('--num_epochs', type=int, default= 100, help="Number of epochs")
-parser.add_argument('--batch_size', type=int, default= 128, help="Batch size")
+parser.add_argument('--batch_size', type=int, default= 12, help="Batch size")
 parser.add_argument('--gpu', type=int, default= 0, help="GPU index")
 args = parser.parse_args()
 
@@ -65,7 +65,7 @@ def eval_roc_auc(model_spatial, model_gene, mlp, spaital_PCs, gene_PCs, labels, 
             pred.append(preds)
     pred = torch.cat(pred).cpu().detach().numpy()
     labels = labels.cpu().numpy()
-    return roc_auc_score(labels, pred, average='macro')
+    return accuracy_score(labels, pred)
     
 def train(model_spatial, model_gene, mlp, spaital_PCs, gene_PCs, labels):
     print(args)
@@ -75,22 +75,22 @@ def train(model_spatial, model_gene, mlp, spaital_PCs, gene_PCs, labels):
     else:
         loss_fn = torch.nn.CrossEntropyLoss()
         opt = torch.optim.AdamW(list(model_spatial.parameters())+ list(model_gene.parameters()) +list(mlp.parameters()), lr = args.lr, weight_decay = args.wd)
-    if(args.raw_dir == 'dfci'):
-        train_idx, test_idx = train_test_split(np.arange(len(labels)), test_size=0.2, random_state=107)
-    else:
-        if(args.raw_dir == "charville"):
-            split = [["c004"], ["c002"]]
-            patient_c = torch.load(f"ST_preprocessed/patient_c_{args.raw_dir}_{args.label_name}.pt")
-        elif(args.raw_dir == "upmc"):
-            split = [["c006", "c002"], ["c003", "c004"]]
-            patient_c = torch.load(f"ST_preprocessed/patient_c_{args.raw_dir}_{args.label_name}.pt")
-        train_idx = []
-        test_idx = []
-        for idx in range(len(patient_c)):
-            if(patient_c[idx] in split[args.fold]):
-                test_idx.append(idx)
-            else:
-                train_idx.append(idx)
+    # if(args.raw_dir == 'dfci'):
+    train_idx, test_idx = train_test_split(np.arange(len(labels)), test_size=0.2, stratify=labels.cpu().numpy())
+    # else:
+    #     if(args.raw_dir == "charville"):
+    #         split = [["c004"], ["c002"]]
+    #         patient_c = torch.load(f"ST_preprocessed/patient_c_{args.raw_dir}_{args.label_name}.pt")
+    #     elif(args.raw_dir == "upmc"):
+    #         split = [["c006", "c002"], ["c003", "c004"]]
+    #         patient_c = torch.load(f"ST_preprocessed/patient_c_{args.raw_dir}_{args.label_name}.pt")
+    #     train_idx = []
+    #     test_idx = []
+    #     for idx in range(len(patient_c)):
+    #         if(patient_c[idx] in split[args.fold]):
+    #             test_idx.append(idx)
+    #         else:
+    #             train_idx.append(idx)
     train_idx = torch.LongTensor(train_idx).to(args.device)
     test_idx = torch.LongTensor(test_idx).to(args.device)
     train_loader = DataLoader(train_idx, batch_size=args.batch_size, shuffle=True)
@@ -110,6 +110,7 @@ def train(model_spatial, model_gene, mlp, spaital_PCs, gene_PCs, labels):
                 X_spatial = model_spatial([spaital_PCs[i].to(args.device) for i in idx], 5)
                 X_gene = model_gene([gene_PCs[i].to(args.device) for i in idx], 5)
                 logits = mlp(torch.cat([X_spatial, X_gene], 1))
+                # import pdb; pdb.set_trace()
                 preds.append(torch.argmax(logits, dim=1))
                 loss = loss_fn(logits, labels[idx])#*10
                 loss.backward()
@@ -131,8 +132,9 @@ def train(model_spatial, model_gene, mlp, spaital_PCs, gene_PCs, labels):
 
 if __name__ == '__main__':
     spaital_PCs, gene_PCs, labels, num_labels = load_data_ST(args.raw_dir, args.label_name)
-    model_spatial = HiPoNet(args.model, spaital_PCs[0].shape[1], args.num_weights, args.spatial_threshold, args.device).to(args.device)
-    model_gene = HiPoNet(args.model, gene_PCs[0].shape[1], args.num_weights, args.gene_threshold, args.device).to(args.device)
+    # spaital_PCs, gene_PCs, labels, num_labels = load_data_ST_melanoma(args.raw_dir)
+    model_spatial = HiPoNet(args.model, spaital_PCs[0].shape[1], args.num_weights, args.spatial_threshold, args.device).to(args.device).float()
+    model_gene = HiPoNet(args.model, gene_PCs[0].shape[1], args.num_weights, args.gene_threshold, args.device).to(args.device).float()
     with torch.no_grad():
         input_dim = model_spatial([spaital_PCs[0].to(args.device)], 10).shape[1] + model_gene([gene_PCs[0].to(args.device)], 10).shape[1]
     mlp = MLP(input_dim, args.hidden_dim, num_labels, args.num_layers).to(args.device)

@@ -37,3 +37,5 @@ knn_gnn.py
 space_gm_preprocess.py
 ST_preprocessed
 pointnet_baseline.py
+main_classification_sigma.sh
+main_classification.sh
